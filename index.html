@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Risque & Rendement — Cours + Simulateur</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-primary: #FFFFFF;
+      --bg-secondary: #F8F9FA;
+      --bg-tertiary: #E8E8E8;
+      --coral: #FF6B4A;
+      --coral-light: #FFF0ED;
+      --coral-dim: rgba(255, 107, 74, 0.15);
+      --text-primary: #2D3436;
+      --text-secondary: #4A5568;
+      --text-muted: #6B7585;
+      --border: #E2E8F0;
+      --green: #27ae60;
+      --blue: #3498db;
+      --red: #e74c3c;
+    }
+    
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    
+    /* ==================== TOP BAR WITH TOGGLE ==================== */
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+    }
+    
+    .mode-toggle {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-radius: 20px;
+      padding: 3px;
+      position: relative;
+    }
+    
+    .mode-toggle::before {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: calc(50% - 3px);
+      height: calc(100% - 6px);
+      background: var(--coral);
+      border-radius: 17px;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 0;
+    }
+    
+    .mode-toggle.simulator-active::before {
+      transform: translateX(100%);
+    }
+    
+    .mode-btn {
+      position: relative;
+      z-index: 1;
+      padding: 6px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: color 0.3s;
+      border-radius: 17px;
+    }
+    
+    .mode-btn.active {
+      color: white;
+    }
+    
+    @media (min-width: 400px) {
+      .mode-btn {
+        padding: 6px 28px;
+        font-size: 14px;
+      }
+    }
+    
+    /* ==================== MAIN CONTENT AREAS ==================== */
+    .main-content {
+      padding-top: 48px;
+    }
+    
+    .content-area {
+      display: none;
+    }
+    
+    .content-area.active {
+      display: block;
+    }
+    
+    /* ==================== COURS STYLES ==================== */
+    #cours-content {
+      background: var(--bg-primary);
+    }
+    
+    .slide {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .slide-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    
+    .slide-number {
+      color: var(--coral);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+    
+    .slide-title {
+      font-size: 32px;
+      font-weight: bold;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+    
+    @media (min-width: 600px) {
+      .slide-title { font-size: 36px; }
+    }
+    
+    .slide-subtitle {
+      font-size: 18px;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+    
+    .card {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 14px;
+      border: 1px solid var(--border);
+    }
+    
+    .card-green { border-left: 4px solid var(--green); }
+    .card-blue { border-left: 4px solid var(--blue); }
+    .card-red { border-left: 4px solid var(--red); }
+    .card-accent { border-left: 4px solid var(--coral); }
+    
+    .card-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    .card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .card-icon { font-size: 24px; margin-right: 10px; }
+    .card-percent { font-size: 28px; font-weight: bold; }
+    
+    .green { color: var(--green); }
+    .blue { color: var(--blue); }
+    .red { color: var(--red); }
+    .accent { color: var(--coral); }
+    .dark { color: var(--text-primary); }
+    .muted { color: var(--text-muted); }
+    .bold { font-weight: bold; }
+    
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-weight: normal; font-size: 12px; background: var(--bg-tertiary); }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    
+    .highlight-box {
+      background: var(--coral-dim);
+      border: 1px solid rgba(255, 107, 74, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+    }
+    
+    .warning-box {
+      background: rgba(231, 76, 60, 0.1);
+      border: 1px solid rgba(231, 76, 60, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+    }
+    
+    .info-list { list-style: none; }
+    .info-list li { padding: 6px 0; color: var(--text-secondary); }
+    .info-list li::before { content: "→ "; color: var(--coral); }
+    
+    .hero {
+      text-align: center;
+      padding: 80px 20px;
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    }
+    
+    .hero-title { font-size: 42px; font-weight: bold; color: var(--text-primary); margin-bottom: 12px; }
+    .hero-subtitle { font-size: 18px; color: var(--text-muted); margin-bottom: 24px; }
+    
+    @media (min-width: 600px) {
+      .hero-title { font-size: 52px; }
+      .hero-subtitle { font-size: 20px; }
+    }
+    
+    .hero-badge {
+      display: inline-block;
+      background: var(--coral);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .formula-box {
+      background: var(--text-primary);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 16px;
+      text-align: center;
+      margin: 16px 0;
+    }
+    
+    .nav-cours {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 500;
+    }
+    
+    .nav-cours a {
+      width: 44px;
+      height: 44px;
+      background: var(--coral);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .cours-footer {
+      text-align: center;
+      padding: 40px 20px;
+      background: var(--bg-secondary);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    
+    /* ==================== HAMBURGER MENU ==================== */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 24px;
+      height: 18px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      position: absolute;
+      left: 16px;
+    }
+    
+    .hamburger span {
+      display: block;
+      width: 100%;
+      height: 2px;
+      background: var(--text-primary);
+      border-radius: 2px;
+      transition: all 0.3s;
+    }
+    
+    .hamburger.active span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+    
+    .hamburger.active span:nth-child(2) {
+      opacity: 0;
+    }
+    
+    .hamburger.active span:nth-child(3) {
+      transform: rotate(-45deg) translate(5px, -5px);
+    }
+    
+    .nav-links {
+      display: none;
+      position: absolute;
+      top: 48px;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.98);
+      flex-direction: column;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 4px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    
+    .nav-links.open {
+      display: flex;
+    }
+    
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 15px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    
+    .nav-links a:hover {
+      color: var(--coral);
+      background: var(--coral-light);
+    }
+    
+    .nav-links .nav-section {
+      color: var(--text-primary);
+      font-weight: bold;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 16px 16px 8px;
+      border-top: 1px solid var(--border);
+      margin-top: 8px;
+    }
+    
+    .nav-links .nav-section:first-child {
+      border-top: none;
+      margin-top: 0;
+    }
+    
+    @media (max-width: 768px) {
+      .hamburger {
+        display: flex;
+      }
+    }
+    
+    /* ==================== ANNEXES STYLES ==================== */
+    .annexes-section {
+      background: var(--bg-secondary);
+      padding: 40px 20px 60px;
+    }
+    
+    .annexes-section .slide-inner {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .annex {
+      background: var(--bg-primary);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+    
+    .annex-title {
+      color: var(--coral);
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--coral);
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: var(--text-primary);
+      margin: 24px 0 12px 0;
+    }
+    
+    .section-title.green { color: var(--green); }
+    .section-title.blue { color: var(--blue); }
+    .section-title.red { color: var(--red); }
+    .section-title.accent { color: var(--coral); }
+    
+    .info-box {
+      background: rgba(52, 152, 219, 0.1);
+      border: 1px solid rgba(52, 152, 219, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+    }
+    
+    /* ==================== SIMULATOR STYLES ==================== */
+    #simulator-content {
+      background: var(--bg-secondary);
+    }
+    
+    .sim-header {
+      background: var(--coral);
+      color: white;
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .sim-header h1 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .sim-header p {
+      font-size: 12px;
+      opacity: 0.85;
+      margin-top: 2px;
+    }
+    
+    .sim-tabs {
+      display: flex;
+      background: var(--bg-primary);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 48px;
+      z-index: 100;
+    }
+    
+    .sim-tab {
+      flex: 1;
+      padding: 10px 4px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .sim-tab.active {
+      color: var(--coral);
+      border-bottom-color: var(--coral);
+      background: var(--coral-light);
+    }
+    
+    .sim-tab-icon {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 2px;
+    }
+    
+    .sim-content {
+      padding: 16px;
+      padding-bottom: 80px;
+    }
+    
+    .sim-tab-content {
+      display: none;
+    }
+    
+    .sim-tab-content.active {
+      display: block;
+    }
+    
+    /* Asset Cards */
+    .asset-card {
+      background: var(--bg-primary);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    
+    .asset-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px;
+      cursor: pointer;
+      border-left: 4px solid var(--asset-color);
+    }
+    
+    .asset-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .asset-icon { font-size: 26px; }
+    
+    .asset-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--asset-color);
+    }
+    
+    .asset-stats {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    
+    .asset-stats span {
+      font-weight: 600;
+      color: var(--asset-color);
+    }
+    
+    .chevron {
+      width: 20px;
+      height: 20px;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+    
+    .asset-card.expanded .chevron {
+      transform: rotate(180deg);
+    }
+    
+    .asset-body {
+      display: none;
+      padding: 0 14px 14px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .asset-card.expanded .asset-body {
+      display: block;
+    }
+    
+    /* Sliders */
+    .slider-group { margin-top: 14px; }
+    
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    
+    .slider-value {
+      font-weight: 700;
+      color: var(--asset-color);
+    }
+    
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      background: var(--border);
+      border-radius: 3px;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: var(--asset-color);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    .slider-range {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    
+    /* Toggle */
+    .option-card {
+      background: var(--bg-primary);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+    
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--border);
+      border-radius: 26px;
+      transition: 0.3s;
+    }
+    
+    .toggle-slider::before {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    .toggle input:checked + .toggle-slider {
+      background: var(--coral);
+    }
+    
+    .toggle input:checked + .toggle-slider::before {
+      transform: translateX(22px);
+    }
+    
+    .toggle-label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .toggle-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    
+    /* Run Button */
+    .run-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--coral);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+    
+    .run-btn:hover { background: #e55a3a; }
+    .run-btn:disabled { background: var(--text-muted); cursor: wait; }
+    
+    /* Charts */
+    .chart-card {
+      background: var(--bg-primary);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    
+    .chart-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+    
+    .chart-container {
+      height: 220px;
+      position: relative;
+    }
+    
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    
+    .stat-card {
+      background: var(--bg-primary);
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+      border-left: 3px solid var(--stat-color);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    
+    .stat-icon { font-size: 20px; margin-bottom: 4px; }
+    .stat-label { font-size: 10px; color: var(--text-muted); }
+    .stat-value { font-size: 18px; font-weight: 700; color: var(--stat-color); }
+    .stat-sub { font-size: 10px; color: var(--text-muted); }
+    
+    /* Asset selector */
+    .asset-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    
+    .asset-selector button {
+      flex: 1;
+      padding: 10px 8px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg-primary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .asset-selector button.active {
+      border-color: var(--coral);
+      background: var(--coral-light);
+      color: var(--coral);
+    }
+    
+    /* Observation box */
+    .observation {
+      background: var(--coral-light);
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 14px;
+    }
+    
+    .observation-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--coral);
+      margin-bottom: 6px;
+    }
+    
+    .observation-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    
+    /* Summary cards */
+    .summary-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-primary);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-left: 4px solid var(--asset-color);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    
+    .summary-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .summary-icon { font-size: 24px; }
+    .summary-name { font-size: 14px; font-weight: 700; color: var(--asset-color); }
+    .summary-start { font-size: 11px; color: var(--text-muted); }
+    .summary-right { text-align: right; }
+    .summary-value { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+    .summary-return { font-size: 12px; color: var(--green); font-weight: 600; }
+    
+    /* Key insight */
+    .key-insight {
+      background: linear-gradient(135deg, var(--coral) 0%, #e55a3a 100%);
+      color: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      text-align: center;
+    }
+    
+    .key-insight-title {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-bottom: 6px;
+    }
+    
+    .key-insight-text {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    
+    /* CTA to switch mode */
+    .switch-mode-cta {
+      background: var(--bg-primary);
+      border: 2px dashed var(--coral);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      margin: 20px 0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .switch-mode-cta:hover {
+      background: var(--coral-light);
+    }
+    
+    .switch-mode-cta .icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    
+    .switch-mode-cta .text {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--coral);
+    }
+    
+    .switch-mode-cta .subtext {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ==================== TOP BAR WITH MODE TOGGLE ==================== -->
+<div class="top-bar">
+  <button class="hamburger" id="hamburger">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+  
+  <div class="mode-toggle" id="modeToggle">
+    <button class="mode-btn active" data-mode="cours">📚 Cours</button>
+    <button class="mode-btn" data-mode="simulator">🎮 Simulateur</button>
+  </div>
+  
+  <div class="nav-links" id="navLinks">
+    <div class="nav-section">📚 Cours</div>
+    <a href="#intro" onclick="goToCours()">Intro</a>
+    <a href="#regle" onclick="goToCours()">La règle d'or</a>
+    <a href="#actifs" onclick="goToCours()">Les 3 actifs</a>
+    <a href="#risque" onclick="goToCours()">Le risque</a>
+    <a href="#comparaison" onclick="goToCours()">Comparaison</a>
+    <a href="#action" onclick="goToCours()">À toi de jouer</a>
+    
+    <div class="nav-section">📚 Annexes</div>
+    <a href="#a1" onclick="goToCours()">A1 — Hypothèses</a>
+    <a href="#a2" onclick="goToCours()">A2 — Paramètres risque</a>
+    <a href="#a3" onclick="goToCours()">A3 — Résultats</a>
+    <a href="#a4" onclick="goToCours()">A4 — Réinvestissement</a>
+    <a href="#a5" onclick="goToCours()">A5 — Sources</a>
+    
+    <div class="nav-section">🎮 Simulateur</div>
+    <a href="#" onclick="switchToSimulator(); closeNav();">Ouvrir simulateur</a>
+  </div>
+</div>
+
+<!-- ==================== MAIN CONTENT ==================== -->
+<div class="main-content">
+
+  <!-- ==================== COURS CONTENT ==================== -->
+  <div id="cours-content" class="content-area active">
+    
+    <!-- Hero -->
+    <section class="hero slide" id="intro">
+      <div class="hero-title">Risque & Rendement</div>
+      <div class="hero-subtitle">Comprendre l'investissement en Afrique</div>
+      <div class="hero-badge">Capital: 1,000,000 FCFA</div>
+    </section>
+    
+    <!-- Slide 1: La règle d'or -->
+    <section class="slide" id="regle">
+      <div class="slide-inner">
+        <div class="slide-number">Leçon 1</div>
+        <div class="slide-title">La règle d'or</div>
+        <div class="formula-box">
+          Plus le rendement est élevé → Plus le risque est élevé
+        </div>
+        <div class="highlight-box">
+          <strong>💡 Pourquoi ?</strong><br>
+          Si un investissement rapportait beaucoup sans risque, tout le monde le ferait. La demande ferait monter le prix jusqu'à ce que le rendement baisse.
+        </div>
+      </div>
+    </section>
+    
+    <!-- Slide 2: Les 3 actifs -->
+    <section class="slide" id="actifs">
+      <div class="slide-inner">
+        <div class="slide-number">Leçon 2</div>
+        <div class="slide-title">3 investissements, 1M FCFA chacun</div>
+        
+        <div class="grid-3">
+          <div class="card card-green">
+            <div class="card-row">
+              <span><span class="card-icon">🏠</span> <strong>Immobilier</strong></span>
+              <span class="card-percent green">22%</span>
+            </div>
+            <div class="muted">2 appartements T2</div>
+            <div style="margin-top:8px;">Loyers stables, peu de surprises</div>
+          </div>
+          
+          <div class="card card-blue">
+            <div class="card-row">
+              <span><span class="card-icon">🐄</span> <strong>Bétail</strong></span>
+              <span class="card-percent blue">84%</span>
+            </div>
+            <div class="muted">4 vaches laitières</div>
+            <div style="margin-top:8px;">Lait + veaux, mais maladies possibles</div>
+          </div>
+          
+          <div class="card card-red">
+            <div class="card-row">
+              <span><span class="card-icon">🐂</span> <strong>Embouche</strong></span>
+              <span class="card-percent red">165%</span>
+            </div>
+            <div class="muted">2 veaux × 3 cycles/an</div>
+            <div style="margin-top:8px;">Gros gains possibles, mais pertes aussi</div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Slide 3: Le risque expliqué -->
+    <section class="slide" id="risque">
+      <div class="slide-inner">
+        <div class="slide-number">Leçon 3</div>
+        <div class="slide-title">Qu'est-ce que le risque ?</div>
+        <div class="slide-subtitle">L'écart entre le meilleur et le pire scénario</div>
+        
+        <table>
+          <thead>
+            <tr><th>Actif</th><th class="text-center">Variation revenus</th><th class="text-center">Prob. perte</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="green">🏠 Immobilier</td>
+              <td class="text-center">±10%</td>
+              <td class="text-center green">2%/an</td>
+            </tr>
+            <tr>
+              <td class="blue">🐄 Bétail</td>
+              <td class="text-center">±20%</td>
+              <td class="text-center accent">20%/an</td>
+            </tr>
+            <tr>
+              <td class="red">🐂 Embouche</td>
+              <td class="text-center">±30%</td>
+              <td class="text-center red">20%/cycle</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="warning-box">
+          <strong>⚠️ Embouche = 6 events/an</strong><br>
+          2 veaux × 3 cycles = 6 occasions de perdre un animal. Risque cumulé ~50%/an de perdre au moins 1 veau.
+        </div>
+      </div>
+    </section>
+    
+    <!-- Slide 4: Résultats simulation -->
+    <section class="slide" id="resultats">
+      <div class="slide-inner">
+        <div class="slide-number">Leçon 4</div>
+        <div class="slide-title">Simulation sur 5 ans</div>
+        <div class="slide-subtitle">1000 scénarios Monte Carlo</div>
+        
+        <table>
+          <thead>
+            <tr><th>Actif</th><th class="text-right">Rendement</th><th class="text-right">Volatilité</th><th class="text-right">Pire (P10)</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="green">Immobilier</td>
+              <td class="text-right bold">97%</td>
+              <td class="text-right">35%</td>
+              <td class="text-right green">+50%</td>
+            </tr>
+            <tr>
+              <td class="blue">Bétail</td>
+              <td class="text-right bold">232%</td>
+              <td class="text-right">89%</td>
+              <td class="text-right blue">+118%</td>
+            </tr>
+            <tr>
+              <td class="red">Embouche</td>
+              <td class="text-right bold">377%</td>
+              <td class="text-right">205%</td>
+              <td class="text-right red">-71%</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="highlight-box">
+          <strong>📊 À retenir</strong><br>
+          L'embouche peut multiplier ton capital par 4... ou te faire perdre 70%. L'immobilier ne fera jamais ×4, mais tu ne perdras presque jamais.
+        </div>
+      </div>
+    </section>
+    
+    <!-- Slide 5: Call to action -->
+    <section class="slide" id="action">
+      <div class="slide-inner">
+        <div class="slide-number">À toi de jouer</div>
+        <div class="slide-title">Teste par toi-même</div>
+        <div class="slide-subtitle">Le simulateur te permet de modifier les paramètres et voir l'impact sur tes gains</div>
+        
+        <div class="switch-mode-cta" onclick="switchToSimulator()">
+          <div class="icon">🎮</div>
+          <div class="text">Ouvrir le simulateur</div>
+          <div class="subtext">Modifie les paramètres et lance ta propre simulation</div>
+        </div>
+        
+        <div class="card card-accent">
+          <div class="card-title">💡 Questions à explorer</div>
+          <ul class="info-list">
+            <li>Que se passe-t-il si je double le nombre de vaches ?</li>
+            <li>Quel est l'impact du réinvestissement sur 5 ans ?</li>
+            <li>Combien dois-je investir pour atteindre 5M FCFA ?</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+    
+    <div class="cours-footer">
+      Projet pédagogique • Janvier 2026<br>
+      <span style="color: var(--coral);">Capital: 1,000,000 FCFA • Horizon: 5 ans</span>
+    </div>
+    
+    <!-- ==================== ANNEXES TECHNIQUES ==================== -->
+    <section class="annexes-section" id="annexes">
+      <div class="slide-inner">
+        <h2 class="slide-title" style="text-align: center;">📚 Annexes Techniques</h2>
+        <p class="slide-subtitle" style="text-align: center; margin-bottom: 30px;">Documentation complète du modèle</p>
+        
+        <!-- A1 -->
+        <div class="annex" id="a1">
+          <div class="annex-title">A1 — Hypothèses économiques</div>
+          
+          <h4 class="section-title green">🏠 IMMOBILIER</h4>
+          <ul class="info-list">
+            <li>Unités: 2 appartements T2 × 500,000 FCFA = <strong>1,000,000 FCFA</strong></li>
+            <li>Loyer: 15,000 FCFA/mois</li>
+            <li>Occupation: 10 mois/an (2 mois vacance)</li>
+            <li>Charges: Entretien 25,000 | Taxes 7,500 | Gestion 5,400</li>
+            <li>Bénéfice/unité: <span style="color: var(--green); font-weight: bold;">112,100 FCFA/an</span></li>
+          </ul>
+          
+          <h4 class="section-title blue">🐄 BÉTAIL LAITIER</h4>
+          <ul class="info-list">
+            <li>Unités: 4 vaches × 250,000 FCFA = <strong>1,000,000 FCFA</strong></li>
+            <li>Production: 2L/jour × 300 jours × 80% = 480L net</li>
+            <li>Prix lait: 500 FCFA/L → Revenu lait: 240,000 FCFA</li>
+            <li>Natalité: 15% → veau 80kg × 2,500 FCFA/kg = 30,000 FCFA</li>
+            <li>Charges: Fourrage 30,000 | Véto 20,000 | Autres 10,000</li>
+            <li>Bénéfice/unité: <span style="color: var(--blue); font-weight: bold;">210,000 FCFA/an</span></li>
+          </ul>
+          
+          <h4 class="section-title red">🐂 EMBOUCHE BOVINE</h4>
+          <ul class="info-list">
+            <li>Unités: 2 veaux × 3 cycles/an (4 mois/cycle)</li>
+            <li>Prix achat: 300,000 FCFA/veau</li>
+            <li>Poids: Achat 200kg → Vente 290kg (+90kg)</li>
+            <li>Prix vente: 2,500 FCFA/kg → Revenu: 725,000 FCFA</li>
+            <li>Charges/cycle: Hangar 33k | Aliments 120k | Véto 20k | Autres 10k</li>
+            <li>Bénéfice/unité/cycle: <span style="color: var(--red); font-weight: bold;">275,000 FCFA</span></li>
+          </ul>
+        </div>
+        
+        <!-- A2 -->
+        <div class="annex" id="a2">
+          <div class="annex-title">A2 — Paramètres de risque</div>
+          
+          <h4 class="section-title accent">📊 RISQUE REVENU</h4>
+          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 12px;">Distribution triangulaire appliquée chaque année</p>
+          <table class="data-table">
+            <tr><th>Actif</th><th>LOW</th><th>BASE</th><th>HIGH</th></tr>
+            <tr><td style="color: var(--green);">Immobilier</td><td>-10%</td><td>0%</td><td>+10%</td></tr>
+            <tr><td style="color: var(--blue);">Bétail</td><td>-20%</td><td>0%</td><td>+20%</td></tr>
+            <tr><td style="color: var(--red);">Embouche</td><td>-30%</td><td>0%</td><td>+30%</td></tr>
+          </table>
+          
+          <h4 class="section-title accent">💀 RISQUE CAPITAL</h4>
+          <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 12px;">Tirage probabiliste par unité, par cycle</p>
+          <table class="data-table">
+            <tr><th>Actif</th><th>P(perte)</th><th>P(déprec.)</th><th>Impact</th></tr>
+            <tr><td style="color: var(--green);">Immobilier</td><td style="color: var(--green);">2%</td><td>3%</td><td>-10%</td></tr>
+            <tr><td style="color: var(--blue);">Bétail</td><td style="color: var(--coral);">20%</td><td>80%</td><td>-15%</td></tr>
+            <tr><td style="color: var(--red);">Embouche</td><td style="color: var(--red);">20%</td><td>80%</td><td>-75%</td></tr>
+          </table>
+          
+          <div class="info-box" style="background: rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.3); margin-top: 20px;">
+            <p style="color: var(--red); font-weight: bold;">⚠️ ÉVÉNEMENTS DE RISQUE PAR AN</p>
+            <ul class="info-list" style="margin-top: 12px;">
+              <li><span style="color: var(--green);">Immobilier:</span> 2 unités × 1 cycle = <strong>2 events</strong></li>
+              <li><span style="color: var(--blue);">Bétail:</span> 4 unités × 1 cycle = <strong>4 events</strong></li>
+              <li><span style="color: var(--red);">Embouche:</span> 2 unités × 3 cycles = <strong>6 events</strong></li>
+            </ul>
+          </div>
+        </div>
+        
+        <!-- A3 -->
+        <div class="annex" id="a3">
+          <div class="annex-title">A3 — Résultats de simulation</div>
+          
+          <div class="info-box">
+            <p>🎲 <strong>1,000 simulations × 5 ans</strong> | Seed: 42</p>
+          </div>
+          
+          <h4 class="section-title accent">📈 SANS RÉINVESTISSEMENT</h4>
+          <table class="data-table">
+            <tr><th>Actif</th><th>Return 5Y</th><th>Volatilité</th><th>P10</th><th>P90</th></tr>
+            <tr><td style="color: var(--green);">Immobilier</td><td><strong>97%</strong></td><td style="color: var(--green);">35%</td><td>50%</td><td>114%</td></tr>
+            <tr><td style="color: var(--blue);">Bétail</td><td><strong>232%</strong></td><td style="color: var(--coral);">89%</td><td>118%</td><td>332%</td></tr>
+            <tr><td style="color: var(--red);">Embouche</td><td><strong>377%</strong></td><td style="color: var(--red);">205%</td><td style="color: var(--red);">-71%</td><td>595%</td></tr>
+          </table>
+          
+          <h4 class="section-title accent">🔄 AVEC RÉINVESTISSEMENT</h4>
+          <table class="data-table">
+            <tr><th>Actif</th><th>Return 5Y</th><th>Volatilité</th><th>Unités Y5</th></tr>
+            <tr><td style="color: var(--green);">Immobilier</td><td><strong>121%</strong></td><td>46%</td><td>3.7</td></tr>
+            <tr><td style="color: var(--blue);">Bétail</td><td><strong>550%</strong></td><td>274%</td><td>25.5</td></tr>
+            <tr><td style="color: var(--red);">Embouche</td><td style="color: var(--coral);"><strong>3,347%</strong></td><td style="color: var(--red);">2,344%</td><td>114</td></tr>
+          </table>
+          
+          <div class="info-box" style="background: rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.3); margin-top: 20px;">
+            <p style="color: var(--red);">⚠️ 10% des scénarios embouche = <strong>perte de 71%</strong> du capital</p>
+          </div>
+        </div>
+        
+        <!-- A4 -->
+        <div class="annex" id="a4">
+          <div class="annex-title">A4 — Impact du réinvestissement</div>
+          
+          <h4 class="section-title accent">📊 MULTIPLICATION DU CAPITAL (Année 5)</h4>
+          <table class="data-table">
+            <tr><th>Actif</th><th>Sans réinv.</th><th>Avec réinv.</th><th>Multi.</th></tr>
+            <tr><td style="color: var(--green);">Immobilier</td><td>2.0×</td><td><strong>2.2×</strong></td><td style="color: var(--text-muted);">+10%</td></tr>
+            <tr><td style="color: var(--blue);">Bétail</td><td>3.3×</td><td><strong>6.5×</strong></td><td style="color: var(--text-muted);">+97%</td></tr>
+            <tr><td style="color: var(--red);">Embouche</td><td>4.8×</td><td style="color: var(--coral);"><strong>34×</strong></td><td style="color: var(--text-muted);">+608%</td></tr>
+          </table>
+          
+          <div class="info-box" style="margin-top: 20px;">
+            <p style="color: var(--coral); font-weight: bold;">🐄 CROISSANCE DES UNITÉS (moyenne)</p>
+            <ul class="info-list" style="margin-top: 12px;">
+              <li><span style="color: var(--green);">Immobilier:</span> 2 → <strong>3.7 appartements</strong></li>
+              <li><span style="color: var(--blue);">Bétail:</span> 4 → <strong>25.5 vaches</strong></li>
+              <li><span style="color: var(--red);">Embouche:</span> 2 → <strong>114 veaux</strong></li>
+            </ul>
+          </div>
+          
+          <div class="info-box" style="background: rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.3); margin-top: 20px;">
+            <p style="color: var(--red); font-weight: bold;">⚠️ ATTENTION</p>
+            <p style="margin-top: 8px;">Le réinvestissement <strong>amplifie</strong> le risque.</p>
+            <p>Volatilité embouche: 205% → <span style="color: var(--red); font-weight: bold;">2,344%</span></p>
+          </div>
+        </div>
+        
+        <!-- A5 -->
+        <div class="annex" id="a5">
+          <div class="annex-title">A5 — Sources & Limites</div>
+          
+          <h4 class="section-title green">✓ SOURCES</h4>
+          <ul class="info-list">
+            <li>Prix immobilier: Estimation T2 zone périurbaine Afrique de l'Ouest</li>
+            <li>Prix bétail: Marchés locaux Sahel (2024-2025)</li>
+            <li>Taux mortalité: FAO, études vétérinaires régionales</li>
+            <li>Rendements laitiers: Moyennes races locales (Azawak, Gobra)</li>
+          </ul>
+          
+          <h4 class="section-title red">⚠️ LIMITES DU MODÈLE</h4>
+          <ul class="info-list">
+            <li>❌ Pas de contraintes de capacité (main d'œuvre, infrastructure)</li>
+            <li>❌ Pas de corrélation entre actifs (sécheresse = tous affectés)</li>
+            <li>❌ Pas de coûts fixes croissants</li>
+            <li>❌ Pas d'inflation modélisée</li>
+            <li>❌ Pas de contraintes de liquidité</li>
+            <li>❌ Distribution triangulaire simplifiée</li>
+          </ul>
+          
+          <h4 class="section-title accent">🔬 MÉTHODOLOGIE</h4>
+          <ul class="info-list">
+            <li>Simulation: Monte Carlo (1,000 runs)</li>
+            <li>Horizon: 5 ans</li>
+            <li>Risque revenu: Distribution triangulaire</li>
+            <li>Risque capital: Tirage Bernoulli par unité/cycle</li>
+          </ul>
+          
+          <div class="info-box" style="margin-top: 20px;">
+            <p style="color: var(--coral); font-weight: bold;">💡 Note pédagogique</p>
+            <p style="margin-top: 8px;">Ce modèle est une simplification à but éducatif. Les vrais investissements nécessitent une analyse plus approfondie des conditions locales, de la réglementation, et des risques spécifiques.</p>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+    
+  </div>
+
+  <!-- ==================== SIMULATOR CONTENT ==================== -->
+  <div id="simulator-content" class="content-area">
+    
+    <div class="sim-header">
+      <h1>🎯 Simulateur Monte Carlo</h1>
+      <p>Modifie les paramètres et observe l'impact</p>
+    </div>
+    
+    <!-- Simulator tabs -->
+    <div class="sim-tabs">
+      <button class="sim-tab active" data-tab="params">
+        <span class="sim-tab-icon">⚙️</span>Paramètres
+      </button>
+      <button class="sim-tab" data-tab="wealth">
+        <span class="sim-tab-icon">📈</span>Richesse
+      </button>
+      <button class="sim-tab" data-tab="risk">
+        <span class="sim-tab-icon">🎯</span>Risque
+      </button>
+      <button class="sim-tab" data-tab="traj">
+        <span class="sim-tab-icon">〰️</span>Trajectoires
+      </button>
+    </div>
+    
+    <div class="sim-content">
+      
+      <!-- Tab: Params -->
+      <div id="sim-tab-params" class="sim-tab-content active">
+        
+        <!-- Immobilier -->
+        <div class="asset-card" style="--asset-color: var(--green);">
+          <div class="asset-header">
+            <div class="asset-info">
+              <span class="asset-icon">🏠</span>
+              <div>
+                <div class="asset-name">Immobilier</div>
+                <div class="asset-stats">Rendement: <span id="stat-immo-ret">—</span> | Vol: <span id="stat-immo-vol">—</span></div>
+              </div>
+            </div>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </div>
+          <div class="asset-body">
+            <div class="slider-group">
+              <div class="slider-label"><span>Nombre d'appartements</span><span class="slider-value" id="val-immo-units">2</span></div>
+              <input type="range" id="slider-immo-units" min="1" max="5" value="2" style="--asset-color: var(--green);">
+              <div class="slider-range"><span>1</span><span>5</span></div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Prob. perte totale</span><span class="slider-value" id="val-immo-ploss">2%</span></div>
+              <input type="range" id="slider-immo-ploss" min="0" max="0.1" step="0.01" value="0.02" style="--asset-color: var(--green);">
+              <div class="slider-range"><span>0%</span><span>10%</span></div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Variation revenus</span><span class="slider-value" id="val-immo-var">10%</span></div>
+              <input type="range" id="slider-immo-var" min="0" max="0.3" step="0.01" value="0.1" style="--asset-color: var(--green);">
+              <div class="slider-range"><span>0%</span><span>30%</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Bétail -->
+        <div class="asset-card" style="--asset-color: var(--blue);">
+          <div class="asset-header">
+            <div class="asset-info">
+              <span class="asset-icon">🐄</span>
+              <div>
+                <div class="asset-name">Bétail</div>
+                <div class="asset-stats">Rendement: <span id="stat-beta-ret">—</span> | Vol: <span id="stat-beta-vol">—</span></div>
+              </div>
+            </div>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </div>
+          <div class="asset-body">
+            <div class="slider-group">
+              <div class="slider-label"><span>Nombre de vaches</span><span class="slider-value" id="val-beta-units">4</span></div>
+              <input type="range" id="slider-beta-units" min="1" max="10" value="4" style="--asset-color: var(--blue);">
+              <div class="slider-range"><span>1</span><span>10</span></div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Prob. perte totale</span><span class="slider-value" id="val-beta-ploss">20%</span></div>
+              <input type="range" id="slider-beta-ploss" min="0" max="0.4" step="0.01" value="0.2" style="--asset-color: var(--blue);">
+              <div class="slider-range"><span>0%</span><span>40%</span></div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Variation revenus</span><span class="slider-value" id="val-beta-var">20%</span></div>
+              <input type="range" id="slider-beta-var" min="0" max="0.4" step="0.01" value="0.2" style="--asset-color: var(--blue);">
+              <div class="slider-range"><span>0%</span><span>40%</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Embouche -->
+        <div class="asset-card" style="--asset-color: var(--red);">
+          <div class="asset-header">
+            <div class="asset-info">
+              <span class="asset-icon">🐂</span>
+              <div>
+                <div class="asset-name">Embouche</div>
+                <div class="asset-stats">Rendement: <span id="stat-embo-ret">—</span> | Vol: <span id="stat-embo-vol">—</span></div>
+              </div>
+            </div>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </div>
+          <div class="asset-body">
+            <div class="slider-group">
+              <div class="slider-label"><span>Nombre de veaux</span><span class="slider-value" id="val-embo-units">2</span></div>
+              <input type="range" id="slider-embo-units" min="1" max="6" value="2" style="--asset-color: var(--red);">
+              <div class="slider-range"><span>1</span><span>6</span></div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Prob. perte totale</span><span class="slider-value" id="val-embo-ploss">20%</span></div>
+              <input type="range" id="slider-embo-ploss" min="0" max="0.4" step="0.01" value="0.2" style="--asset-color: var(--red);">
+              <div class="slider-range"><span>0%</span><span>40%</span></div>
+            </div>
+            <div class="slider-group">
+              <div class="slider-label"><span>Variation revenus</span><span class="slider-value" id="val-embo-var">30%</span></div>
+              <input type="range" id="slider-embo-var" min="0" max="0.5" step="0.01" value="0.3" style="--asset-color: var(--red);">
+              <div class="slider-range"><span>0%</span><span>50%</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Reinvest toggle -->
+        <div class="option-card">
+          <label class="toggle-row">
+            <div class="toggle">
+              <input type="checkbox" id="reinvest-toggle">
+              <span class="toggle-slider"></span>
+            </div>
+            <div>
+              <div class="toggle-label">Réinvestir les profits</div>
+              <div class="toggle-desc">Acheter de nouvelles unités avec les gains</div>
+            </div>
+          </label>
+        </div>
+        
+        <button class="run-btn" id="run-btn">🚀 Lancer la simulation</button>
+        
+      </div>
+      
+      <!-- Tab: Wealth -->
+      <div id="sim-tab-wealth" class="sim-tab-content">
+        <div class="stats-grid">
+          <div class="stat-card" style="--stat-color: var(--green);">
+            <div class="stat-icon">🏠</div>
+            <div class="stat-label">Immobilier</div>
+            <div class="stat-value" id="wealth-immo">—</div>
+          </div>
+          <div class="stat-card" style="--stat-color: var(--blue);">
+            <div class="stat-icon">🐄</div>
+            <div class="stat-label">Bétail</div>
+            <div class="stat-value" id="wealth-beta">—</div>
+          </div>
+          <div class="stat-card" style="--stat-color: var(--red);">
+            <div class="stat-icon">🐂</div>
+            <div class="stat-label">Embouche</div>
+            <div class="stat-value" id="wealth-embo">—</div>
+          </div>
+        </div>
+        
+        <div class="chart-card">
+          <div class="chart-title">📈 Évolution de la richesse (5 ans)</div>
+          <div class="chart-container">
+            <canvas id="wealth-chart"></canvas>
+          </div>
+        </div>
+        
+        <div id="summary-cards"></div>
+      </div>
+      
+      <!-- Tab: Risk -->
+      <div id="sim-tab-risk" class="sim-tab-content">
+        <div class="chart-card">
+          <div class="chart-title">🎯 Risque vs Rendement</div>
+          <div class="chart-container">
+            <canvas id="risk-chart"></canvas>
+          </div>
+        </div>
+        
+        <div class="key-insight">
+          <div class="key-insight-title">💡 Ce que montre ce graphique</div>
+          <div class="key-insight-text">Plus tu montes à droite → Plus de risque<br>Plus tu montes en haut → Plus de rendement</div>
+        </div>
+      </div>
+      
+      <!-- Tab: Trajectories -->
+      <div id="sim-tab-traj" class="sim-tab-content">
+        <div class="asset-selector">
+          <button class="active" data-select="immobilier">🏠 Immobilier</button>
+          <button data-select="betail">🐄 Bétail</button>
+          <button data-select="embouche">🐂 Embouche</button>
+        </div>
+        
+        <div class="chart-card">
+          <div class="chart-title">〰️ 15 trajectoires possibles</div>
+          <div class="chart-container">
+            <canvas id="traj-chart"></canvas>
+          </div>
+        </div>
+        
+        <div class="observation">
+          <div class="observation-title">🔍 Observation</div>
+          <div class="observation-text" id="observation-text">Sélectionne un actif pour voir l'analyse.</div>
+        </div>
+      </div>
+      
+    </div>
+    
+  </div>
+
+</div>
+
+<script>
+// ============================================
+// MODE TOGGLE
+// ============================================
+const modeToggle = document.getElementById('modeToggle');
+const modeButtons = modeToggle.querySelectorAll('.mode-btn');
+const coursContent = document.getElementById('cours-content');
+const simulatorContent = document.getElementById('simulator-content');
+
+modeButtons.forEach(btn => {
+  btn.onclick = () => {
+    const mode = btn.dataset.mode;
+    
+    // Update buttons
+    modeButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    // Update toggle pill position
+    if (mode === 'simulator') {
+      modeToggle.classList.add('simulator-active');
+    } else {
+      modeToggle.classList.remove('simulator-active');
+    }
+    
+    // Show/hide content
+    coursContent.classList.toggle('active', mode === 'cours');
+    simulatorContent.classList.toggle('active', mode === 'simulator');
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+  };
+});
+
+function switchToSimulator() {
+  modeButtons[1].click();
+}
+
+// ============================================
+// HAMBURGER MENU
+// ============================================
+const hamburger = document.getElementById('hamburger');
+const navLinks = document.getElementById('navLinks');
+
+hamburger.addEventListener('click', () => {
+  hamburger.classList.toggle('active');
+  navLinks.classList.toggle('open');
+});
+
+function closeNav() {
+  hamburger.classList.remove('active');
+  navLinks.classList.remove('open');
+}
+
+function goToCours() {
+  // Switch to cours mode if not already
+  if (!modeButtons[0].classList.contains('active')) {
+    modeButtons[0].click();
+  }
+  closeNav();
+}
+
+// Close nav when clicking a link
+navLinks.querySelectorAll('a').forEach(link => {
+  link.addEventListener('click', closeNav);
+});
+
+// ============================================
+// SIMULATOR LOGIC
+// ============================================
+
+const ASSETS = {
+  immobilier: { label: 'Immobilier', icon: '🏠', color: '#27ae60', price: 500000, profit: 112100, cycles: 1 },
+  betail: { label: 'Bétail', icon: '🐄', color: '#3498db', price: 250000, profit: 210000, cycles: 1 },
+  embouche: { label: 'Embouche', icon: '🐂', color: '#e74c3c', price: 300000, profit: 275000, cycles: 3 }
+};
+
+const params = {
+  immobilier: { nUnits: 2, pLoss: 0.02, revVar: 0.10 },
+  betail: { nUnits: 4, pLoss: 0.20, revVar: 0.20 },
+  embouche: { nUnits: 2, pLoss: 0.20, revVar: 0.30 },
+  reinvest: false
+};
+
+let results = null;
+let wealthChart = null;
+let riskChart = null;
+let trajChart = null;
+let selectedTrajAsset = 'immobilier';
+
+const N_RUNS = 500;
+const N_YEARS = 5;
+
+function runSimulation() {
+  const res = {};
+  
+  for (const [name, config] of Object.entries(ASSETS)) {
+    const p = params[name];
+    const initialCap = p.nUnits * config.price;
+    const cap = params.reinvest ? 999999 : p.nUnits;
+    
+    const finalWealth = [];
+    const wealthTrajs = [];
+    const revenueTrajs = [];
+    
+    for (let run = 0; run < N_RUNS; run++) {
+      let units = p.nUnits;
+      let cash = 0;
+      const wTraj = [initialCap];
+      const rTraj = [];
+      
+      for (let y = 0; y < N_YEARS; y++) {
+        let yearRev = 0;
+        
+        for (let c = 0; c < config.cycles; c++) {
+          let losses = 0;
+          for (let u = 0; u < units; u++) {
+            if (Math.random() < p.pLoss) {
+              losses++;
+            } else {
+              const variation = -p.revVar + Math.random() * (2 * p.revVar);
+              yearRev += config.profit * (1 + variation);
+            }
+          }
+          units -= losses;
+          while (units < cap && cash >= config.price) {
+            units++;
+            cash -= config.price;
+          }
+        }
+        
+        cash += yearRev;
+        rTraj.push(yearRev);
+        
+        while (units < cap && cash >= config.price) {
+          units++;
+          cash -= config.price;
+        }
+        
+        wTraj.push(units * config.price + cash);
+      }
+      
+      finalWealth.push(units * config.price + cash);
+      wealthTrajs.push(wTraj);
+      revenueTrajs.push(rTraj);
+    }
+    
+    const mean = finalWealth.reduce((a, b) => a + b, 0) / N_RUNS;
+    const returns = finalWealth.map(w => (w - initialCap) / initialCap);
+    const meanReturn = returns.reduce((a, b) => a + b, 0) / N_RUNS;
+    const variance = returns.reduce((s, r) => s + Math.pow(r - meanReturn, 2), 0) / N_RUNS;
+    const volatility = Math.sqrt(variance);
+    
+    const meanWealthTraj = [];
+    for (let y = 0; y <= N_YEARS; y++) {
+      meanWealthTraj.push(wealthTrajs.map(t => t[y]).reduce((a, b) => a + b, 0) / N_RUNS);
+    }
+    
+    const meanRevTraj = [];
+    for (let y = 0; y < N_YEARS; y++) {
+      meanRevTraj.push(revenueTrajs.map(t => t[y]).reduce((a, b) => a + b, 0) / N_RUNS);
+    }
+    
+    res[name] = {
+      initialCap,
+      meanWealth: mean,
+      meanReturn: meanReturn * 100,
+      volatility: volatility * 100,
+      meanWealthTraj,
+      meanRevTraj,
+      sampleRevTrajs: revenueTrajs.slice(0, 15)
+    };
+  }
+  
+  return res;
+}
+
+function drawWealthChart() {
+  const ctx = document.getElementById('wealth-chart').getContext('2d');
+  
+  const data = {
+    labels: ['0', '1', '2', '3', '4', '5'],
+    datasets: Object.entries(ASSETS).map(([name, config]) => ({
+      label: config.label,
+      data: results[name].meanWealthTraj.map(v => v / 1e6),
+      borderColor: config.color,
+      backgroundColor: config.color + '20',
+      borderWidth: 3,
+      pointRadius: 4,
+      pointBackgroundColor: config.color,
+      tension: 0.1
+    }))
+  };
+  
+  if (wealthChart) wealthChart.destroy();
+  
+  wealthChart = new Chart(ctx, {
+    type: 'line',
+    data,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: 'Année', font: { size: 11 } } },
+        y: { title: { display: true, text: 'M FCFA', font: { size: 11 } } }
+      }
+    }
+  });
+  
+  // Update wealth stats
+  document.getElementById('wealth-immo').textContent = (results.immobilier.meanWealth / 1e6).toFixed(1) + 'M';
+  document.getElementById('wealth-beta').textContent = (results.betail.meanWealth / 1e6).toFixed(1) + 'M';
+  document.getElementById('wealth-embo').textContent = (results.embouche.meanWealth / 1e6).toFixed(1) + 'M';
+}
+
+function drawRiskChart() {
+  const ctx = document.getElementById('risk-chart').getContext('2d');
+  
+  const data = {
+    datasets: [{
+      data: Object.entries(ASSETS).map(([name, config]) => ({
+        x: results[name].volatility,
+        y: results[name].meanReturn,
+        label: config.label
+      })),
+      backgroundColor: Object.values(ASSETS).map(a => a.color),
+      pointRadius: 14,
+      pointHoverRadius: 16
+    }]
+  };
+  
+  if (riskChart) riskChart.destroy();
+  
+  riskChart = new Chart(ctx, {
+    type: 'scatter',
+    data,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { 
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.raw.label}: ${ctx.raw.y.toFixed(0)}% rend., ${ctx.raw.x.toFixed(0)}% risque`
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Risque (Volatilité %)', font: { size: 11 } }, min: 0 },
+        y: { title: { display: true, text: 'Rendement %', font: { size: 11 } }, min: 0 }
+      }
+    }
+  });
+}
+
+function drawTrajChart() {
+  const ctx = document.getElementById('traj-chart').getContext('2d');
+  const asset = ASSETS[selectedTrajAsset];
+  const data = results[selectedTrajAsset];
+  
+  const datasets = [];
+  
+  data.sampleRevTrajs.forEach((traj, i) => {
+    datasets.push({
+      data: traj.map(v => v / 1e6),
+      borderColor: asset.color + '50',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0.1
+    });
+  });
+  
+  datasets.push({
+    label: 'Moyenne',
+    data: data.meanRevTraj.map(v => v / 1e6),
+    borderColor: asset.color,
+    borderWidth: 4,
+    pointRadius: 4,
+    pointBackgroundColor: asset.color,
+    tension: 0.1
+  });
+  
+  if (trajChart) trajChart.destroy();
+  
+  trajChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: ['1', '2', '3', '4', '5'], datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: 'Année', font: { size: 11 } } },
+        y: { title: { display: true, text: 'Revenus (M FCFA)', font: { size: 11 } }, min: 0 }
+      }
+    }
+  });
+  
+  const obs = {
+    immobilier: 'Les lignes sont très serrées → revenus <strong>prévisibles</strong> chaque année.',
+    betail: "Les lignes s'écartent → certaines années bonnes, d'autres mauvaises. <strong>Risque modéré</strong>.",
+    embouche: 'Lignes très dispersées ! Certaines tombent à <strong>zéro</strong>. <strong>Risque élevé</strong>.'
+  };
+  document.getElementById('observation-text').innerHTML = obs[selectedTrajAsset];
+}
+
+function updateSummaryCards() {
+  const container = document.getElementById('summary-cards');
+  container.innerHTML = Object.entries(ASSETS).map(([name, config]) => `
+    <div class="summary-card" style="--asset-color: ${config.color}">
+      <div class="summary-left">
+        <span class="summary-icon">${config.icon}</span>
+        <div>
+          <div class="summary-name">${config.label}</div>
+          <div class="summary-start">Départ: ${(results[name].initialCap / 1e6).toFixed(1)}M</div>
+        </div>
+      </div>
+      <div class="summary-right">
+        <div class="summary-value">${(results[name].meanWealth / 1e6).toFixed(1)}M</div>
+        <div class="summary-return">+${results[name].meanReturn.toFixed(0)}%</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateStats() {
+  document.getElementById('stat-immo-ret').textContent = results.immobilier.meanReturn.toFixed(0) + '%';
+  document.getElementById('stat-immo-vol').textContent = results.immobilier.volatility.toFixed(0) + '%';
+  document.getElementById('stat-beta-ret').textContent = results.betail.meanReturn.toFixed(0) + '%';
+  document.getElementById('stat-beta-vol').textContent = results.betail.volatility.toFixed(0) + '%';
+  document.getElementById('stat-embo-ret').textContent = results.embouche.meanReturn.toFixed(0) + '%';
+  document.getElementById('stat-embo-vol').textContent = results.embouche.volatility.toFixed(0) + '%';
+}
+
+// ============================================
+// UI HANDLERS
+// ============================================
+
+// Simulator tab switching
+document.querySelectorAll('.sim-tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.sim-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.sim-tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('sim-tab-' + tab.dataset.tab).classList.add('active');
+  };
+});
+
+// Asset card expand
+document.querySelectorAll('.asset-card').forEach(card => {
+  card.querySelector('.asset-header').onclick = () => {
+    card.classList.toggle('expanded');
+  };
+});
+
+// Sliders
+function setupSlider(id, formatter) {
+  const slider = document.getElementById(id);
+  const display = document.getElementById(id.replace('slider', 'val'));
+  
+  slider.oninput = () => {
+    const val = parseFloat(slider.value);
+    display.textContent = formatter(val);
+    
+    const parts = id.split('-');
+    const asset = parts[1] === 'immo' ? 'immobilier' : parts[1] === 'beta' ? 'betail' : 'embouche';
+    const param = parts[2] === 'units' ? 'nUnits' : parts[2] === 'ploss' ? 'pLoss' : 'revVar';
+    params[asset][param] = val;
+  };
+}
+
+setupSlider('slider-immo-units', v => v);
+setupSlider('slider-immo-ploss', v => Math.round(v * 100) + '%');
+setupSlider('slider-immo-var', v => Math.round(v * 100) + '%');
+setupSlider('slider-beta-units', v => v);
+setupSlider('slider-beta-ploss', v => Math.round(v * 100) + '%');
+setupSlider('slider-beta-var', v => Math.round(v * 100) + '%');
+setupSlider('slider-embo-units', v => v);
+setupSlider('slider-embo-ploss', v => Math.round(v * 100) + '%');
+setupSlider('slider-embo-var', v => Math.round(v * 100) + '%');
+
+// Reinvest toggle
+document.getElementById('reinvest-toggle').onchange = (e) => {
+  params.reinvest = e.target.checked;
+};
+
+// Run button
+document.getElementById('run-btn').onclick = () => {
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Calcul...';
+  
+  setTimeout(() => {
+    results = runSimulation();
+    updateStats();
+    drawWealthChart();
+    drawRiskChart();
+    drawTrajChart();
+    updateSummaryCards();
+    
+    btn.disabled = false;
+    btn.textContent = '🚀 Lancer la simulation';
+  }, 50);
+};
+
+// Trajectory asset selector
+document.querySelectorAll('.asset-selector button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.asset-selector button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedTrajAsset = btn.dataset.select;
+    if (results) drawTrajChart();
+  };
+});
+
+// Initial run
+document.getElementById('run-btn').click();
+</script>
+
+</body>
+</html>
