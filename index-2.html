@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simulateur Risque-Rendement</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        /* Custom slider styling for mobile */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 12px;
+            border-radius: 6px;
+            background: #e5e7eb;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #4f46e5;
+            margin-top: -6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input[type="range"]::-moz-range-track {
+            height: 12px;
+            border-radius: 6px;
+            background: #e5e7eb;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #4f46e5;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, Cell } = Recharts;
+
+        // Simulation engine
+        const runSimulation = (params, nRuns = 100, nYears = 5) => {
+            const results = {
+                immobilier: { wealthTrajectories: [], revenueTrajectories: [], finalWealth: [] },
+                betail: { wealthTrajectories: [], revenueTrajectories: [], finalWealth: [] },
+                embouche: { wealthTrajectories: [], revenueTrajectories: [], finalWealth: [] }
+            };
+
+            const assets = {
+                immobilier: {
+                    nUnits: params.immobilier.nUnits,
+                    priceUnit: 500000,
+                    profitUnit: 112100,
+                    cycles: 1,
+                    pLoss: params.immobilier.pLoss,
+                    revVar: params.immobilier.revVar
+                },
+                betail: {
+                    nUnits: params.betail.nUnits,
+                    priceUnit: 250000,
+                    profitUnit: 210000,
+                    cycles: 1,
+                    pLoss: params.betail.pLoss,
+                    revVar: params.betail.revVar
+                },
+                embouche: {
+                    nUnits: params.embouche.nUnits,
+                    priceUnit: 300000,
+                    profitUnit: 275000,
+                    cycles: 3,
+                    pLoss: params.embouche.pLoss,
+                    revVar: params.embouche.revVar
+                }
+            };
+
+            for (const [assetName, asset] of Object.entries(assets)) {
+                const initialCapital = asset.nUnits * asset.priceUnit;
+                const cap = params.reinvest ? 999999 : asset.nUnits;
+
+                for (let run = 0; run < nRuns; run++) {
+                    let nUnits = asset.nUnits;
+                    let cash = 0;
+                    const wealthTrajectory = [initialCapital];
+                    const revenueTrajectory = [];
+
+                    for (let year = 0; year < nYears; year++) {
+                        let yearRevenue = 0;
+
+                        for (let cycle = 0; cycle < asset.cycles; cycle++) {
+                            let lossesThisCycle = 0;
+
+                            for (let u = 0; u < nUnits; u++) {
+                                if (Math.random() < asset.pLoss) {
+                                    lossesThisCycle++;
+                                } else {
+                                    const variation = (Math.random() - 0.5) * 2 * asset.revVar;
+                                    yearRevenue += asset.profitUnit * (1 + variation);
+                                }
+                            }
+
+                            nUnits -= lossesThisCycle;
+
+                            while (nUnits < cap && cash >= asset.priceUnit) {
+                                nUnits++;
+                                cash -= asset.priceUnit;
+                            }
+                        }
+
+                        revenueTrajectory.push(yearRevenue);
+                        cash += yearRevenue;
+
+                        while (nUnits < cap && cash >= asset.priceUnit) {
+                            nUnits++;
+                            cash -= asset.priceUnit;
+                        }
+
+                        wealthTrajectory.push(nUnits * asset.priceUnit + cash);
+                    }
+
+                    results[assetName].wealthTrajectories.push(wealthTrajectory);
+                    results[assetName].revenueTrajectories.push(revenueTrajectory);
+                    results[assetName].finalWealth.push(wealthTrajectory[nYears]);
+                }
+            }
+
+            const stats = {};
+            for (const [assetName, data] of Object.entries(results)) {
+                const finalWealth = data.finalWealth;
+                const initialCapital = assets[assetName].nUnits * assets[assetName].priceUnit;
+                
+                const mean = finalWealth.reduce((a, b) => a + b, 0) / nRuns;
+                const returns = finalWealth.map(w => (w - initialCapital) / initialCapital);
+                const meanReturn = returns.reduce((a, b) => a + b, 0) / nRuns;
+                const variance = returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / nRuns;
+                const volatility = Math.sqrt(variance);
+
+                const meanWealthTrajectory = [];
+                for (let y = 0; y <= nYears; y++) {
+                    const yearValues = data.wealthTrajectories.map(t => t[y]);
+                    meanWealthTrajectory.push(yearValues.reduce((a, b) => a + b, 0) / nRuns);
+                }
+                
+                const meanRevenueTrajectory = [];
+                for (let y = 0; y < nYears; y++) {
+                    const yearValues = data.revenueTrajectories.map(t => t[y]);
+                    meanRevenueTrajectory.push(yearValues.reduce((a, b) => a + b, 0) / nRuns);
+                }
+
+                stats[assetName] = {
+                    meanWealth: mean,
+                    meanReturn: meanReturn * 100,
+                    volatility: volatility * 100,
+                    meanWealthTrajectory,
+                    meanRevenueTrajectory,
+                    sampleRevenueTrajectories: data.revenueTrajectories.slice(0, 15),
+                    initialCapital
+                };
+            }
+
+            return stats;
+        };
+
+        const COLORS = {
+            immobilier: '#27ae60',
+            betail: '#3498db',
+            embouche: '#e74c3c'
+        };
+
+        const LABELS = {
+            immobilier: 'Immobilier',
+            betail: 'Bétail',
+            embouche: 'Embouche'
+        };
+
+        const ICONS = {
+            immobilier: '🏠',
+            betail: '🐄',
+            embouche: '🐂'
+        };
+
+        function InvestmentSimulator() {
+            const [params, setParams] = useState({
+                immobilier: { nUnits: 2, pLoss: 0.02, revVar: 0.10 },
+                betail: { nUnits: 4, pLoss: 0.20, revVar: 0.20 },
+                embouche: { nUnits: 2, pLoss: 0.20, revVar: 0.30 },
+                reinvest: false
+            });
+
+            const [results, setResults] = useState(null);
+            const [isRunning, setIsRunning] = useState(false);
+            const [activeTab, setActiveTab] = useState('params');
+            const [selectedAsset, setSelectedAsset] = useState('immobilier');
+            const [expandedAsset, setExpandedAsset] = useState(null);
+
+            const runSim = () => {
+                setIsRunning(true);
+                setTimeout(() => {
+                    const res = runSimulation(params, 150, 5);
+                    setResults(res);
+                    setIsRunning(false);
+                }, 50);
+            };
+
+            useEffect(() => {
+                runSim();
+            }, []);
+
+            const updateParam = (asset, key, value) => {
+                setParams(prev => ({
+                    ...prev,
+                    [asset]: { ...prev[asset], [key]: value }
+                }));
+            };
+
+            const wealthChartData = useMemo(() => {
+                if (!results) return [];
+                return [0, 1, 2, 3, 4, 5].map(year => ({
+                    year,
+                    immobilier: results.immobilier.meanWealthTrajectory[year] / 1e6,
+                    betail: results.betail.meanWealthTrajectory[year] / 1e6,
+                    embouche: results.embouche.meanWealthTrajectory[year] / 1e6
+                }));
+            }, [results]);
+
+            const scatterData = useMemo(() => {
+                if (!results) return [];
+                return Object.entries(results).map(([name, data]) => ({
+                    name: LABELS[name],
+                    x: data.volatility,
+                    y: data.meanReturn,
+                    color: COLORS[name]
+                }));
+            }, [results]);
+
+            const trajectoryChartData = useMemo(() => {
+                if (!results) return [];
+                const years = [1, 2, 3, 4, 5];
+                return years.map(year => {
+                    const point = { year };
+                    results[selectedAsset].sampleRevenueTrajectories.forEach((traj, i) => {
+                        point[`traj_${i}`] = traj[year - 1] / 1e6;
+                    });
+                    point.mean = results[selectedAsset].meanRevenueTrajectory[year - 1] / 1e6;
+                    return point;
+                });
+            }, [results, selectedAsset]);
+
+            const Slider = ({ label, value, onChange, min, max, step, unit = '', color }) => (
+                <div className="mb-5">
+                    <div className="flex justify-between text-base mb-2">
+                        <span className="text-gray-700 font-medium">{label}</span>
+                        <span className="font-bold" style={{ color }}>{unit === '%' ? (value * 100).toFixed(0) + '%' : value}</span>
+                    </div>
+                    <input
+                        type="range"
+                        min={min}
+                        max={max}
+                        step={step}
+                        value={value}
+                        onChange={(e) => onChange(parseFloat(e.target.value))}
+                        className="w-full"
+                        style={{ accentColor: color }}
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>{unit === '%' ? (min * 100) + '%' : min}</span>
+                        <span>{unit === '%' ? (max * 100) + '%' : max}</span>
+                    </div>
+                </div>
+            );
+
+            const AssetCard = ({ name }) => {
+                const isExpanded = expandedAsset === name;
+                const color = COLORS[name];
+                const assetParams = params[name];
+                
+                return (
+                    <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-3">
+                        <button
+                            onClick={() => setExpandedAsset(isExpanded ? null : name)}
+                            className="w-full p-4 flex items-center justify-between"
+                            style={{ borderLeft: `4px solid ${color}` }}
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">{ICONS[name]}</span>
+                                <div className="text-left">
+                                    <div className="font-bold text-lg" style={{ color }}>{LABELS[name]}</div>
+                                    {results && (
+                                        <div className="text-sm text-gray-500">
+                                            Rendement: <span className="font-semibold" style={{ color }}>{results[name].meanReturn.toFixed(0)}%</span>
+                                            {' • '}Vol: {results[name].volatility.toFixed(0)}%
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <svg 
+                                className={`w-6 h-6 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        
+                        {isExpanded && (
+                            <div className="px-4 pb-4 pt-2 border-t">
+                                <Slider
+                                    label="Nombre d'unités"
+                                    value={assetParams.nUnits}
+                                    onChange={(v) => updateParam(name, 'nUnits', v)}
+                                    min={1}
+                                    max={10}
+                                    step={1}
+                                    color={color}
+                                />
+                                <Slider
+                                    label="Probabilité de perte/an"
+                                    value={assetParams.pLoss}
+                                    onChange={(v) => updateParam(name, 'pLoss', v)}
+                                    min={0}
+                                    max={0.5}
+                                    step={0.01}
+                                    unit="%"
+                                    color={color}
+                                />
+                                <Slider
+                                    label="Variabilité des revenus"
+                                    value={assetParams.revVar}
+                                    onChange={(v) => updateParam(name, 'revVar', v)}
+                                    min={0}
+                                    max={0.5}
+                                    step={0.05}
+                                    unit="%"
+                                    color={color}
+                                />
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const TabButton = ({ id, label, icon }) => (
+                <button
+                    onClick={() => setActiveTab(id)}
+                    className={`flex-1 py-3 px-2 text-center text-sm font-medium transition-colors ${
+                        activeTab === id 
+                            ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50' 
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <span className="block text-lg mb-1">{icon}</span>
+                    {label}
+                </button>
+            );
+
+            return (
+                <div className="min-h-screen bg-gray-100">
+                    {/* Header */}
+                    <div className="bg-indigo-600 text-white p-4 pb-6">
+                        <h1 className="text-xl font-bold text-center">🎯 Simulateur Risque-Rendement</h1>
+                        <p className="text-indigo-200 text-center text-sm mt-1">Apprends en jouant avec les paramètres</p>
+                    </div>
+
+                    {/* Tab Navigation */}
+                    <div className="bg-white flex shadow-sm sticky top-0 z-10">
+                        <TabButton id="params" label="Paramètres" icon="⚙️" />
+                        <TabButton id="wealth" label="Richesse" icon="📈" />
+                        <TabButton id="risk" label="Risque" icon="⚖️" />
+                        <TabButton id="trajectories" label="Trajectoires" icon="🎲" />
+                    </div>
+
+                    <div className="p-4 pb-24">
+                        {/* PARAMS TAB */}
+                        {activeTab === 'params' && (
+                            <div>
+                                <div className="mb-4">
+                                    <AssetCard name="immobilier" />
+                                    <AssetCard name="betail" />
+                                    <AssetCard name="embouche" />
+                                </div>
+
+                                <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+                                    <label className="flex items-center gap-4 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={params.reinvest}
+                                            onChange={(e) => setParams(prev => ({ ...prev, reinvest: e.target.checked }))}
+                                            className="w-6 h-6 rounded accent-indigo-600"
+                                        />
+                                        <div>
+                                            <div className="font-medium">Réinvestir les profits</div>
+                                            <div className="text-sm text-gray-500">Les revenus achètent de nouvelles unités</div>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <button
+                                    onClick={runSim}
+                                    disabled={isRunning}
+                                    className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg hover:bg-indigo-700 disabled:bg-gray-400 transition-colors"
+                                >
+                                    {isRunning ? '⏳ Calcul en cours...' : '🚀 Lancer la simulation'}
+                                </button>
+
+                                <div className="mt-4 p-4 bg-yellow-50 rounded-xl text-sm text-yellow-800">
+                                    <strong>💡 Astuce:</strong> Clique sur un actif pour modifier ses paramètres. Plus le rendement est élevé, plus le risque l'est aussi !
+                                </div>
+                            </div>
+                        )}
+
+                        {/* WEALTH TAB */}
+                        {activeTab === 'wealth' && results && (
+                            <div>
+                                <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+                                    <h3 className="font-bold text-gray-700 mb-1">📈 Évolution sur 5 ans</h3>
+                                    <p className="text-xs text-gray-500 mb-3">Richesse moyenne en millions FCFA</p>
+                                    <ResponsiveContainer width="100%" height={280}>
+                                        <LineChart data={wealthChartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                                            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                                            <YAxis tick={{ fontSize: 12 }} />
+                                            <Tooltip formatter={(v) => `${v.toFixed(2)} M`} />
+                                            <Legend wrapperStyle={{ fontSize: 12 }} />
+                                            <Line type="monotone" dataKey="immobilier" stroke={COLORS.immobilier} strokeWidth={3} name="🏠 Immo" dot={{ r: 5 }} />
+                                            <Line type="monotone" dataKey="betail" stroke={COLORS.betail} strokeWidth={3} name="🐄 Bétail" dot={{ r: 5 }} />
+                                            <Line type="monotone" dataKey="embouche" stroke={COLORS.embouche} strokeWidth={3} name="🐂 Embouche" dot={{ r: 5 }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {Object.entries(results).map(([name, data]) => (
+                                        <div 
+                                            key={name} 
+                                            className="bg-white rounded-xl p-4 shadow-sm flex items-center justify-between"
+                                            style={{ borderLeft: `4px solid ${COLORS[name]}` }}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-2xl">{ICONS[name]}</span>
+                                                <div>
+                                                    <div className="font-bold" style={{ color: COLORS[name] }}>{LABELS[name]}</div>
+                                                    <div className="text-sm text-gray-500">Départ: {(data.initialCapital / 1e6).toFixed(1)}M</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xl font-bold" style={{ color: COLORS[name] }}>
+                                                    {(data.meanWealth / 1e6).toFixed(1)}M
+                                                </div>
+                                                <div className="text-sm text-green-600">+{data.meanReturn.toFixed(0)}%</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* RISK TAB */}
+                        {activeTab === 'risk' && results && (
+                            <div>
+                                <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+                                    <h3 className="font-bold text-gray-700 mb-1">⚖️ Risque vs Rendement</h3>
+                                    <p className="text-xs text-gray-500 mb-3">Plus on est à droite, plus c'est risqué</p>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                                            <XAxis type="number" dataKey="x" name="Volatilité" unit="%" tick={{ fontSize: 11 }} label={{ value: 'Risque %', position: 'bottom', offset: -5, fontSize: 12 }} />
+                                            <YAxis type="number" dataKey="y" name="Rendement" unit="%" tick={{ fontSize: 11 }} label={{ value: 'Rendement %', angle: -90, position: 'insideLeft', fontSize: 12 }} />
+                                            <Tooltip formatter={(v) => `${v.toFixed(0)}%`} />
+                                            <Scatter data={scatterData} fill="#8884d8">
+                                                {scatterData.map((entry, index) => (
+                                                    <Cell key={index} fill={entry.color} r={12} />
+                                                ))}
+                                            </Scatter>
+                                        </ScatterChart>
+                                    </ResponsiveContainer>
+                                    <div className="flex justify-center gap-4 mt-2 text-sm">
+                                        {Object.entries(LABELS).map(([key, label]) => (
+                                            <div key={key} className="flex items-center gap-1">
+                                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: COLORS[key] }} />
+                                                <span>{ICONS[key]}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
+                                    <strong>🎓 Comprendre le graphique:</strong>
+                                    <ul className="mt-2 space-y-1 list-disc list-inside">
+                                        <li><strong>Axe X (horizontal)</strong> = Risque (volatilité)</li>
+                                        <li><strong>Axe Y (vertical)</strong> = Rendement moyen</li>
+                                        <li>L'idéal serait en haut à gauche (haut rendement, faible risque)... mais ça n'existe pas ! 😅</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TRAJECTORIES TAB */}
+                        {activeTab === 'trajectories' && results && (
+                            <div>
+                                <div className="flex gap-2 mb-4">
+                                    {Object.entries(LABELS).map(([key, label]) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => setSelectedAsset(key)}
+                                            className="flex-1 py-3 px-2 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-1"
+                                            style={{
+                                                backgroundColor: selectedAsset === key ? COLORS[key] : 'white',
+                                                color: selectedAsset === key ? 'white' : COLORS[key],
+                                                border: `2px solid ${COLORS[key]}`
+                                            }}
+                                        >
+                                            <span>{ICONS[key]}</span>
+                                            <span className="hidden sm:inline">{label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+                                    <h3 className="font-bold text-gray-700 mb-1">🎲 15 Futurs possibles</h3>
+                                    <p className="text-xs text-gray-500 mb-3">Chaque ligne = un scénario différent</p>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <LineChart data={trajectoryChartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                                            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                                            <YAxis tick={{ fontSize: 12 }} />
+                                            <Tooltip formatter={(v) => `${v.toFixed(2)} M FCFA`} />
+                                            {[...Array(15)].map((_, i) => (
+                                                <Line
+                                                    key={i}
+                                                    type="monotone"
+                                                    dataKey={`traj_${i}`}
+                                                    stroke={COLORS[selectedAsset]}
+                                                    strokeWidth={1.5}
+                                                    strokeOpacity={0.4}
+                                                    dot={false}
+                                                />
+                                            ))}
+                                            <Line
+                                                type="monotone"
+                                                dataKey="mean"
+                                                stroke={COLORS[selectedAsset]}
+                                                strokeWidth={4}
+                                                dot={{ r: 5, fill: COLORS[selectedAsset] }}
+                                                name="Moyenne"
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+
+                                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 text-sm">
+                                    <strong>🔍 Observe:</strong>
+                                    <div className="mt-2">
+                                        {selectedAsset === 'immobilier' && (
+                                            <span>Les lignes sont très serrées → revenus <strong>prévisibles</strong> chaque année.</span>
+                                        )}
+                                        {selectedAsset === 'betail' && (
+                                            <span>Les lignes s'écartent → certaines années sont bonnes, d'autres mauvaises. <strong>Risque modéré</strong>.</span>
+                                        )}
+                                        {selectedAsset === 'embouche' && (
+                                            <span>Les lignes sont très dispersées ! Certaines tombent à <strong>zéro</strong> (tous les veaux meurent). <strong>Risque élevé</strong>.</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Bottom bar */}
+                    <div className="fixed bottom-0 left-0 right-0 bg-gray-800 text-white p-3 text-center text-sm">
+                        💡 <strong>Message clé:</strong> Plus tu veux gagner, plus tu peux perdre !
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<InvestmentSimulator />);
+    </script>
+</body>
+</html>
