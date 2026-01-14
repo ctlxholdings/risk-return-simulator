@@ -2060,7 +2060,8 @@ document.getElementById('proba-toggle').onchange = (e) => {
   }
 };
 
-// Run button - auto-switch to Richesse tab after simulation
+// Run button - auto-switch to Richesse tab after manual click
+let isInitialRun = true;
 document.getElementById('run-btn').onclick = () => {
   const btn = document.getElementById('run-btn');
   btn.disabled = true;
@@ -2077,8 +2078,11 @@ document.getElementById('run-btn').onclick = () => {
     btn.disabled = false;
     btn.textContent = '🚀 Lancer la simulation';
 
-    // Auto-switch to Richesse tab
-    document.querySelector('.sim-tab[data-tab="wealth"]').click();
+    // Auto-switch to Richesse tab (only after manual click, not initial load)
+    if (!isInitialRun) {
+      document.querySelector('.sim-tab[data-tab="wealth"]').click();
+    }
+    isInitialRun = false;
   }, 50);
 };
 
