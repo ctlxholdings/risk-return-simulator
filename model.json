@@ -1,0 +1,184 @@
+{
+  "meta": {
+    "version": "2.0",
+    "timestamp": "2026-01-07T23:00:00",
+    "currency": "FCFA",
+    "description": "Single Source of Truth - Risk/Return Model"
+  },
+  
+  "simulation": {
+    "n_runs": 1000,
+    "n_years": 5,
+    "seed": 42
+  },
+  
+  "assets": {
+    "immobilier": {
+      "config": {
+        "name": "Immobilier",
+        "label": "2 appartements T2",
+        "n_units": 2,
+        "price_unit": 500000,
+        "n_cycles_year": 1
+      },
+      "inputs": {
+        "rent_month": 15000,
+        "n_months_occupied": 10,
+        "cost_maintenance": 25000,
+        "cost_taxes": 7500,
+        "cost_management": 5400
+      },
+      "risks": {
+        "revenue": {
+          "pct_low": -0.10,
+          "pct_base": 0.00,
+          "pct_high": 0.10
+        },
+        "capital": {
+          "p_loss_total": 0.02,
+          "p_depreciation": 0.03,
+          "pct_depreciation": -0.10,
+          "p_appreciation": 0.95,
+          "pct_appreciation": 0.02
+        }
+      },
+      "excel_mapping": {
+        "column": "C",
+        "cells": {
+          "n_units": "C4",
+          "price_unit": "C5",
+          "rent_month": "C13",
+          "n_months_occupied": "C14",
+          "cost_maintenance": "C26",
+          "cost_taxes": "C27",
+          "cost_management": "C28",
+          "pct_low": "C38",
+          "pct_base": "C39",
+          "pct_high": "C40",
+          "p_loss_total": "C43",
+          "p_depreciation": "C44",
+          "pct_depreciation": "C45",
+          "p_appreciation": "C46",
+          "pct_appreciation": "C47"
+        }
+      }
+    },
+    
+    "betail": {
+      "config": {
+        "name": "Bétail",
+        "label": "4 vaches laitières",
+        "n_units": 4,
+        "price_unit": 250000,
+        "n_cycles_year": 1
+      },
+      "inputs": {
+        "milk_liters_day": 2,
+        "n_days_production": 300,
+        "pct_milk_loss": 0.20,
+        "price_milk_liter": 500,
+        "pct_birth_rate": 0.15,
+        "calf_weight_kg": 80,
+        "price_calf_kg": 2500,
+        "cost_feed": 30000,
+        "cost_vet": 20000,
+        "cost_other": 10000
+      },
+      "risks": {
+        "revenue": {
+          "pct_low": -0.20,
+          "pct_base": 0.00,
+          "pct_high": 0.20
+        },
+        "capital": {
+          "p_loss_total": 0.20,
+          "p_depreciation": 0.80,
+          "pct_depreciation": -0.15,
+          "p_appreciation": 0.00,
+          "pct_appreciation": 0.00
+        }
+      },
+      "excel_mapping": {
+        "column": "H",
+        "cells": {
+          "n_units": "H4",
+          "price_unit": "H5",
+          "milk_liters_day": "H13",
+          "n_days_production": "H14",
+          "pct_milk_loss": "H15",
+          "price_milk_liter": "H17",
+          "pct_birth_rate": "H19",
+          "calf_weight_kg": "H20",
+          "price_calf_kg": "H21",
+          "cost_feed": "H26",
+          "cost_vet": "H27",
+          "cost_other": "H28",
+          "pct_low": "H38",
+          "pct_base": "H39",
+          "pct_high": "H40",
+          "p_loss_total": "H43",
+          "p_depreciation": "H44",
+          "pct_depreciation": "H45",
+          "p_appreciation": "H46",
+          "pct_appreciation": "H47"
+        }
+      }
+    },
+    
+    "embouche": {
+      "config": {
+        "name": "Embouche",
+        "label": "2 veaux × 3 cycles/an",
+        "n_units": 2,
+        "price_unit": 300000,
+        "n_cycles_year": 3
+      },
+      "inputs": {
+        "weight_buy_kg": 200,
+        "weight_gain_kg": 90,
+        "price_sell_kg": 2500,
+        "cost_hangar_year": 100000,
+        "cost_feed_cycle": 120000,
+        "cost_vet_cycle": 20000,
+        "cost_other_cycle": 10000
+      },
+      "risks": {
+        "revenue": {
+          "pct_low": -0.30,
+          "pct_base": 0.00,
+          "pct_high": 0.30
+        },
+        "capital": {
+          "p_loss_total": 0.20,
+          "p_depreciation": 0.80,
+          "pct_depreciation": -0.75,
+          "p_appreciation": 0.00,
+          "pct_appreciation": 0.00
+        }
+      },
+      "excel_mapping": {
+        "column": "M",
+        "cells": {
+          "n_units": "M4",
+          "n_cycles_year": "M5",
+          "price_unit": "M6",
+          "cost_hangar_year": "M7",
+          "weight_buy_kg": "M13",
+          "weight_gain_kg": "M14",
+          "price_sell_kg": "M16",
+          "cost_feed_cycle": "M27",
+          "cost_vet_cycle": "M28",
+          "cost_other_cycle": "M29",
+          "pct_low": "M38",
+          "pct_base": "M39",
+          "pct_high": "M40",
+          "p_loss_total": "M43",
+          "p_depreciation": "M44",
+          "pct_depreciation": "M45",
+          "p_appreciation": "M46",
+          "pct_appreciation": "M47"
+        }
+      }
+    }
+  }
+}

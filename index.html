@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Risque & Rendement — Cours + Simulateur</title>
+
+  <!-- PWA Support -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FF6B4A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Risque">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -299,7 +308,7 @@
     
     /* ==================== HAMBURGER MENU ==================== */
     .hamburger {
-      display: none;
+      display: flex;
       flex-direction: column;
       justify-content: space-between;
       width: 24px;
@@ -879,6 +888,78 @@
       color: var(--text-muted);
       margin-top: 4px;
     }
+
+    /* ==================== STICKY REINVEST BAR ==================== */
+    .sticky-reinvest-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: var(--bg-primary);
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 88px;
+      z-index: 99;
+    }
+
+    .sticky-reinvest-bar .toggle {
+      width: 40px;
+      height: 22px;
+    }
+
+    .sticky-reinvest-bar .toggle-slider::before {
+      width: 16px;
+      height: 16px;
+    }
+
+    .sticky-reinvest-bar .toggle input:checked + .toggle-slider::before {
+      transform: translateX(18px);
+    }
+
+    .sticky-reinvest-bar .toggle-label {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* ==================== TRAJECTORY TYPE TOGGLE ==================== */
+    .traj-type-toggle {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 14px;
+    }
+
+    .traj-type-btn {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .traj-type-btn.active {
+      background: var(--coral);
+      color: white;
+    }
+
+    /* ==================== MOBILE < 400px ==================== */
+    @media (max-width: 400px) {
+      .sim-content { padding: 12px; }
+      .asset-selector button { padding: 8px 4px; font-size: 10px; }
+      .traj-type-toggle { margin-bottom: 10px; }
+      .traj-type-btn { padding: 6px 8px; font-size: 11px; }
+      .sim-tab { padding: 8px 2px; font-size: 10px; }
+      .sim-tab-icon { font-size: 14px; }
+      .sticky-reinvest-bar { padding: 8px 12px; gap: 8px; }
+      .sticky-reinvest-bar .toggle-label { font-size: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -1281,7 +1362,18 @@
         <span class="sim-tab-icon">〰️</span>Trajectoires
       </button>
     </div>
-    
+
+    <!-- Sticky reinvest bar -->
+    <div class="sticky-reinvest-bar">
+      <label class="toggle-row" style="gap: 10px;">
+        <div class="toggle">
+          <input type="checkbox" id="reinvest-toggle">
+          <span class="toggle-slider"></span>
+        </div>
+        <span class="toggle-label">Réinvestir les profits</span>
+      </label>
+    </div>
+
     <div class="sim-content">
       
       <!-- Tab: Params -->
@@ -1386,20 +1478,6 @@
           </div>
         </div>
         
-        <!-- Reinvest toggle -->
-        <div class="option-card">
-          <label class="toggle-row">
-            <div class="toggle">
-              <input type="checkbox" id="reinvest-toggle">
-              <span class="toggle-slider"></span>
-            </div>
-            <div>
-              <div class="toggle-label">Réinvestir les profits</div>
-              <div class="toggle-desc">Acheter de nouvelles unités avec les gains</div>
-            </div>
-          </label>
-        </div>
-        
         <button class="run-btn" id="run-btn">🚀 Lancer la simulation</button>
         
       </div>
@@ -1464,6 +1542,10 @@
       
       <!-- Tab: Trajectories -->
       <div id="sim-tab-traj" class="sim-tab-content">
+        <div class="traj-type-toggle">
+          <button class="traj-type-btn active" data-type="revenue">Revenus</button>
+          <button class="traj-type-btn" data-type="wealth">Richesse</button>
+        </div>
         <div class="asset-selector">
           <button class="active" data-select="immobilier">🏠 Immobilier</button>
           <button data-select="betail">🐄 Bétail</button>
@@ -1577,6 +1659,7 @@ let wealthChart = null;
 let riskChart = null;
 let trajChart = null;
 let selectedTrajAsset = 'immobilier';
+let trajType = 'revenue'; // 'revenue' or 'wealth'
 
 const N_RUNS = 500;
 const N_YEARS = 5;
@@ -1688,7 +1771,8 @@ function runSimulation() {
       p50WealthTraj,
       p90WealthTraj,
       meanRevTraj,
-      sampleRevTrajs: revenueTrajs.slice(0, 15)
+      sampleRevTrajs: revenueTrajs.slice(0, 15),
+      sampleWealthTrajs: wealthTrajs.slice(0, 15)
     };
   }
   
@@ -1810,10 +1894,15 @@ function drawTrajChart() {
   const ctx = document.getElementById('traj-chart').getContext('2d');
   const asset = ASSETS[selectedTrajAsset];
   const data = results[selectedTrajAsset];
-  
+
   const datasets = [];
-  
-  data.sampleRevTrajs.forEach((traj, i) => {
+  const isWealth = trajType === 'wealth';
+  const sampleTrajs = isWealth ? data.sampleWealthTrajs : data.sampleRevTrajs;
+  const meanTraj = isWealth ? data.meanWealthTraj : data.meanRevTraj;
+  const labels = isWealth ? ['0', '1', '2', '3', '4', '5'] : ['1', '2', '3', '4', '5'];
+  const yLabel = isWealth ? 'Richesse (M FCFA)' : 'Revenus (M FCFA)';
+
+  sampleTrajs.forEach((traj, i) => {
     datasets.push({
       data: traj.map(v => v / 1e6),
       borderColor: asset.color + '50',
@@ -1822,38 +1911,45 @@ function drawTrajChart() {
       tension: 0.1
     });
   });
-  
+
   datasets.push({
     label: 'Moyenne',
-    data: data.meanRevTraj.map(v => v / 1e6),
+    data: meanTraj.map(v => v / 1e6),
     borderColor: asset.color,
     borderWidth: 4,
     pointRadius: 4,
     pointBackgroundColor: asset.color,
     tension: 0.1
   });
-  
+
   if (trajChart) trajChart.destroy();
-  
+
   trajChart = new Chart(ctx, {
     type: 'line',
-    data: { labels: ['1', '2', '3', '4', '5'], datasets },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
         x: { title: { display: true, text: 'Année', font: { size: 11 } } },
-        y: { title: { display: true, text: 'Revenus (M FCFA)', font: { size: 11 } }, min: 0 }
+        y: { title: { display: true, text: yLabel, font: { size: 11 } }, min: 0 }
       }
     }
   });
-  
-  const obs = {
-    immobilier: 'Les lignes sont très serrées → revenus <strong>prévisibles</strong> chaque année.',
-    betail: "Les lignes s'écartent → certaines années bonnes, d'autres mauvaises. <strong>Risque modéré</strong>.",
-    embouche: 'Lignes très dispersées ! Certaines tombent à <strong>zéro</strong>. <strong>Risque élevé</strong>.'
+
+  // Observation texts based on mode
+  const obsWealth = {
+    immobilier: "Croissance régulière et prévisible. L'immobilier accumule lentement mais sûrement.",
+    betail: "Croissance variable selon les années. Certains scénarios excellent, d'autres stagnent.",
+    embouche: "Trajectoires très dispersées ! Certaines explosent, d'autres s'effondrent."
   };
+  const obsRevenue = {
+    immobilier: "Revenus très stables d'une année à l'autre. Peu de surprises, idéal pour planifier.",
+    betail: "Revenus variables : certaines années excellentes, d'autres décevantes. La mort du bétail impacte directement.",
+    embouche: "Revenus extrêmement volatils ! Gros gains possibles, mais aussi années à zéro si les bêtes meurent."
+  };
+  const obs = isWealth ? obsWealth : obsRevenue;
   document.getElementById('observation-text').innerHTML = obs[selectedTrajAsset];
 }
 
@@ -1942,9 +2038,17 @@ setupSlider('slider-embo-units', v => v);
 setupSlider('slider-embo-ploss', v => Math.round(v * 100) + '%');
 setupSlider('slider-embo-var', v => Math.round(v * 100) + '%');
 
-// Reinvest toggle
+// Reinvest toggle - auto-rerun simulation when changed
 document.getElementById('reinvest-toggle').onchange = (e) => {
   params.reinvest = e.target.checked;
+  if (results) {
+    results = runSimulation();
+    updateStats();
+    drawWealthChart();
+    drawRiskChart();
+    drawTrajChart();
+    updateSummaryCards();
+  }
 };
 
 // Proba toggle (P10-P90 bands)
@@ -1956,12 +2060,12 @@ document.getElementById('proba-toggle').onchange = (e) => {
   }
 };
 
-// Run button
+// Run button - auto-switch to Richesse tab after simulation
 document.getElementById('run-btn').onclick = () => {
   const btn = document.getElementById('run-btn');
   btn.disabled = true;
   btn.textContent = '⏳ Calcul...';
-  
+
   setTimeout(() => {
     results = runSimulation();
     updateStats();
@@ -1969,9 +2073,12 @@ document.getElementById('run-btn').onclick = () => {
     drawRiskChart();
     drawTrajChart();
     updateSummaryCards();
-    
+
     btn.disabled = false;
     btn.textContent = '🚀 Lancer la simulation';
+
+    // Auto-switch to Richesse tab
+    document.querySelector('.sim-tab[data-tab="wealth"]').click();
   }, 50);
 };
 
@@ -1985,8 +2092,23 @@ document.querySelectorAll('.asset-selector button').forEach(btn => {
   };
 });
 
+// Trajectory type toggle (Revenus / Richesse)
+document.querySelectorAll('.traj-type-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.traj-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    trajType = btn.dataset.type;
+    if (results) drawTrajChart();
+  };
+});
+
 // Initial run
 document.getElementById('run-btn').click();
+
+// Register service worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 
 </body>
