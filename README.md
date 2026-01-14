@@ -1,93 +1,159 @@
-# Package v2.2 — Simulation Monte Carlo avec Storytelling Charts
+# Risk-Return Simulator
 
-**Date:** 9 janvier 2026  
-**Version:** 2.2
+Interactive Monte Carlo simulator for understanding investment risk in Africa.
 
----
+## Live
 
-## Contenu
+https://learn.ctlx.holdings/risk-return/
 
-### Fichiers Core
-| Fichier | Rôle |
-|---------|------|
-| `model.json` | Source unique des paramètres (SST) |
-| `simulate.py` | Simulation Monte Carlo (v2.1 - correct) |
-| `results.json` | Résultats pré-calculés |
-| `charts.py` | Génération des 19 visualisations |
-| `excel_writer.py` | Export vers Excel |
+## Tech Stack
 
-### Documentation
-- `QUICK_INSTRUCTIONS.md` — Guide rapide
-- `TECHNICAL_DOCUMENTATION.md` — Documentation complète
+| Tool | Purpose |
+|------|---------|
+| Vanilla HTML/CSS/JS | Everything in one file |
+| Chart.js | Charts |
+| PWA | Offline support |
+| Vercel | Deployment |
 
----
+## Why Vanilla (not React)?
 
-## Charts Générés (19 total)
+This is a **single-page interactive tool**. Vanilla HTML is better because:
 
-### Standard (14 charts)
+- Zero build step — edit `index.html` and deploy
+- Smallest bundle (~50KB total)
+- Works offline (PWA ready)
+- No dependencies to update
 
-| ID | Fichier | Description |
-|----|---------|-------------|
-| A | chart_a_revenus.png | Revenus annuels + bandes P10-P90 |
-| B | chart_b_wealth.png | Richesse cumulée 5 ans |
-| C | chart_c_bulles.png | Scatter risque-rendement |
-| D | chart_d_zones.png | Zones colorées (sûre/modérée/risquée) |
-| A-r | chart_a_revenus_reinvest.png | Revenus avec réinvestissement |
-| B-r | chart_b_capital_reinvest.png | Capital avec réinvestissement |
-| C-r | chart_c_bulles_reinvest.png | Bulles avec réinvestissement |
-| D-r | chart_d_zones_reinvest.png | Zones avec réinvestissement |
-| E | chart_e_comparaison.png | Comparaison avec/sans réinvest |
-| F | chart_f_units.png | Croissance nombre d'unités |
-| G | chart_g_trajectoires.png | 30 trajectoires par actif |
-| H | chart_h_une_trajectoire.png | 1 trajectoire par actif |
-| E-v | chart_e_comparaison_vertical.png | Version TikTok (9:16) |
-| G-v | chart_g_trajectoires_vertical.png | Version TikTok (9:16) |
+Use Next.js/React when you need **multiple pages with shared components**. See [Platform Specs](../LEARN_PLATFORM_SPECS.md) for decision guide.
 
-### Storytelling (5 nouveaux charts)
-
-| ID | Fichier | Description | Message pédagogique |
-|----|---------|-------------|---------------------|
-| S1 | chart_s1_promesse.png | **LA PROMESSE** — Rendements théoriques | "Voici ce qu'on te promet" |
-| S2 | chart_s2_mais_icons.png | **MAIS...** — Risque visualisé avec icônes | "Mais X sur 10 risquent une perte" |
-| S3 | chart_s3_malchanceux.png | **SI TU ES MALCHANCEUX** — P10 wealth | "Les 10% les plus malchanceux perdent..." |
-| S4 | chart_s4_ecart.png | **L'ÉCART** — Dumbbell P10-P90 | "L'écart entre chanceux et malchanceux" |
-| S5 | chart_s5_chute.png | **LA CHUTE** — Slope chart promise→reality | "De 825% promis à -71% réel pour embouche" |
-
----
-
-## Utilisation
+## Local Development
 
 ```bash
-# Régénérer les résultats (optionnel - results.json déjà inclus)
-python3 simulate.py
+# Option 1: Python server
+python3 -m http.server 8080
+# Open http://localhost:8080
 
-# Générer tous les charts
-python3 charts.py
-
-# Export Excel (optionnel)
-python3 excel_writer.py
+# Option 2: Just open the file
+open index.html
 ```
 
----
+## Project Structure
 
-## Résultats Clés (v2.1 correct)
+```
+├── index.html      # Everything: HTML + CSS + JS (~2100 lines)
+├── manifest.json   # PWA manifest
+├── sw.js           # Service worker for offline
+├── icons/          # PWA icons (72px to 512px)
+├── model.json      # Simulation parameters (reference)
+└── README.md
+```
 
-### Sans réinvestissement — 5 ans
+## Features
 
-| Actif | Return moyen | P10 (malchanceux) | P90 (chanceux) | Volatilité |
-|-------|--------------|-------------------|----------------|------------|
+| Feature | Description |
+|---------|-------------|
+| **Cours Mode** | 6 slides explaining risk/return concepts |
+| **Simulateur Mode** | Interactive Monte Carlo simulation |
+| **3 Assets** | Immobilier (🏠), Bétail (🐄), Embouche (🐂) |
+| **4 Tabs** | Paramètres, Richesse, Risque, Trajectoires |
+| **Reinvest Toggle** | Compare with/without profit reinvestment |
+| **Trajectory Types** | Switch between Revenus and Richesse views |
+| **PWA** | Installable, works offline |
+
+## Simulation Model
+
+```javascript
+// Asset configuration
+ASSETS = {
+  immobilier: { price: 500000, profit: 112100, cycles: 1 },  // 22% yield
+  betail:     { price: 250000, profit: 210000, cycles: 1 },  // 84% yield
+  embouche:   { price: 300000, profit: 275000, cycles: 3 }   // 165% yield (3 cycles/year)
+};
+
+// Risk parameters (user-adjustable)
+params = {
+  immobilier: { nUnits: 2, pLoss: 0.02, revVar: 0.10 },
+  betail:     { nUnits: 4, pLoss: 0.20, revVar: 0.20 },
+  embouche:   { nUnits: 2, pLoss: 0.20, revVar: 0.30 }
+};
+
+// Simulation: 500 runs × 5 years
+```
+
+## Key Results (default parameters)
+
+| Asset | Mean Return | P10 (worst 10%) | P90 (best 10%) | Volatility |
+|-------|-------------|-----------------|----------------|------------|
 | Immobilier | +97% | +50% | +114% | 35% |
 | Bétail | +232% | +118% | +332% | 89% |
 | Embouche | +377% | **-71%** | +595% | 205% |
 
-**Point clé:** L'embouche a le meilleur rendement moyen mais les 10% les plus malchanceux **perdent 71% de leur capital**.
+**Key insight:** Embouche has highest average return, but 10% of scenarios lose 71% of capital.
 
----
+## UX Patterns
 
-## Validation
+| Pattern | Implementation |
+|---------|----------------|
+| **Sticky reinvest toggle** | Visible on all chart tabs, not just Paramètres |
+| **Auto-rerun on toggle** | Charts update immediately when reinvest changes |
+| **Auto-switch to results** | After "Lancer", switches to Richesse tab |
+| **Observation texts** | Each chart has contextual explanation |
+| **Initial state** | Stays on Paramètres tab on first load |
 
-Ce package utilise la logique v2.1 **correcte**:
-- Quand un veau meurt → `n_units--` (capital perdu)
-- Remplacement uniquement si cash disponible
+## Design System
 
-Le bug v3.1 (où n_units restait constant) a été corrigé.
+```css
+:root {
+  --coral: #FF6B4A;          /* Primary accent */
+  --coral-light: #FFF0ED;    /* Light backgrounds */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8F9FA;
+  --text-primary: #2D3436;
+  --green: #27ae60;          /* Immobilier */
+  --blue: #3498db;           /* Bétail */
+  --red: #e74c3c;            /* Embouche */
+}
+```
+
+## PWA Setup
+
+Files required:
+- `manifest.json` — App name, icons, theme color
+- `sw.js` — Service worker for offline caching
+- Meta tags in HTML head
+
+```html
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF6B4A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+```
+
+## Deployment
+
+Automatic on push to `main` branch via Vercel.
+
+```bash
+git add -A && git commit -m "Your message" && git push
+```
+
+**Note:** This app is served via rewrite from the main app. URL `learn.ctlx.holdings/risk-return/` proxies to `risk-return-simulator.vercel.app`.
+
+## Related
+
+| Resource | Link |
+|----------|------|
+| Stochastic Course App | [GitHub](https://github.com/ctlxholdings/stochastic-course-app) |
+| Platform Specs | `../LEARN_PLATFORM_SPECS.md` |
+| Live Site | https://learn.ctlx.holdings/risk-return/ |
+
+## Python Scripts (for chart generation)
+
+The repo also includes Python scripts for generating static charts:
+
+| File | Purpose |
+|------|---------|
+| `simulate.py` | Monte Carlo simulation |
+| `charts.py` | Generate 19 PNG visualizations |
+| `excel_writer.py` | Export to Excel |
+
+These are **not used by the web app** — the web app runs simulations in JavaScript.
